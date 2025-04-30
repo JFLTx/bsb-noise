@@ -21,6 +21,14 @@
       crossorigin=""
     ></script>
 
+    <!-- Libre Franklin font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Libre+Franklin:ital,wght@0,100..900;1,100..900&display=swap"
+      rel="stylesheet"
+    />
+
     <style>
       body {
         margin: 0;
@@ -75,6 +83,30 @@
         text-align: center;
         padding-right: 15px;
         /* padding-left: 10px; */
+      }
+
+      .popup-label {
+        font-weight: bold;
+        color: black;
+        padding: 2px 6px;
+        border-radius: 4px;
+        display: inline-block;
+      }
+
+      .fill-impacted {
+        background-color: #ff0000; /* Impacted Yes, Benefited No */
+      }
+      .fill-not-impacted {
+        background-color: #ff7d18; /* Impacted No, Benefited No */
+      }
+      .fill-benefited {
+        background-color: #ffff00; /* Impacted No, Benefited Yes */
+      }
+      .fill-impacted-benefited {
+        background-color: #4ce600; /* Both Yes */
+      }
+      .fill-unknown {
+        background-color: #aaaaaa;
       }
 
       /* Following rules overwrite the Leaflet default popup styles, regardless of browser orientation. */
@@ -283,6 +315,7 @@
         {
           attribution:
             "Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community",
+          opacity: 0.8,
         }
       );
 
@@ -339,11 +372,6 @@
       // Add base layers
       L.control.layers(basemaps, overlaymaps, { collapsed: false }).addTo(map);
 
-      // Fit to overlay bounds (SW and NE points with (lat, lon))
-      //   map.whenReady(() => {
-      //     map.fitBounds(lyr.getBounds());
-      //   });
-
       // fetch geojson data
       fetch("data/receivers.geojson")
         .then((response) => response.json())
@@ -373,21 +401,28 @@
               const props = feature.properties;
 
               const receiver = props.Receiver || "Not Available";
+
               const proposed = props.Proposed
                 ? `${parseFloat(props.Proposed).toFixed(1)} dB[A]`
                 : "Not Available";
+
               const barrier = props.Barrier
                 ? `${parseFloat(props.Barrier).toFixed(1)} dB[A]`
                 : "Not Available";
+
               const reduction = props.Reduction
                 ? `${parseFloat(props.Reduction).toFixed(1)} dB[A]`
                 : "Not Available";
+
+              const impactBenefitLine = getLabel(props);
+
               const popupContent = `
                 <strong>Receiver:</strong> ${receiver}<br>
+                ${impactBenefitLine}<br>
                 <strong>Proposed Noise Levels without Barrier:</strong> ${proposed}<br>
                 <strong>Proposed Noise Levels with Barrier:</strong> ${barrier}<br>
                 <strong>Noise Reduction:</strong> ${reduction}
-                `;
+              `;
               layer.bindPopup(popupContent);
             },
           }).addTo(map);
@@ -404,21 +439,53 @@
           });
           // fit map to receiversLayer extent
           map.fitBounds(receiversLayer.getBounds());
-
         });
 
-   
-      // function to get fill color based on feature properties
-      function getFillColor(props) {
+      function getLabel(props) {
+        const impacted = props.Impact?.toLowerCase() === "yes";
+        const benefited = props.Benefited?.toLowerCase() === "yes";
+        let label = "";
+
+        if (impacted && benefited) {
+          label = "Impacted & Benefited";
+          return `<span class="popup-label fill-impacted-benefited">${label}</span>`;
+        }
+        if (!impacted && benefited) {
+          label = "Not Impacted, Benefited";
+          return `<span class="popup-label fill-benefited">${label}</span>`;
+        }
+        if (!impacted && !benefited) {
+          label = "Not Impacted or Benefited";
+          return `<span class="popup-label fill-not-impacted">${label}</span>`;
+        }
+        if (impacted && !benefited) {
+          label = "Impacted, Not Benefited";
+          return `<span class="popup-label fill-impacted">${label}</span>`;
+        }
+
+        return `<span class="popup-label fill-unknown">Unknown</span>`;
+      }
+
+      function getImpactClass(props) {
         const impacted = props.Impact?.toLowerCase() === "yes";
         const benefited = props.Benefited?.toLowerCase() === "yes";
 
-        if (impacted && benefited) return "#4CE600";
-        if (!impacted && benefited) return "#FFFF00";
-        if (!impacted && !benefited) return "#FF7D18";
-        if (impacted && !benefited) return "#FF0000";
+        if (impacted && benefited) return "fill-impacted-benefited";
+        if (!impacted && benefited) return "fill-benefited";
+        if (!impacted && !benefited) return "fill-not-impacted";
+        if (impacted && !benefited) return "fill-impacted";
+        return "fill-unknown";
+      }
 
-        return "#AAAAAA";
+      // function to get fill color based on feature properties
+      function getFillColor(props) {
+        const cls = getImpactClass(props);
+        const temp = document.createElement("div");
+        temp.className = cls;
+        document.body.appendChild(temp);
+        const color = window.getComputedStyle(temp).backgroundColor;
+        document.body.removeChild(temp);
+        return color;
       }
     </script>
   </body>
