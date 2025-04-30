@@ -410,7 +410,7 @@
    
       // function to get fill color based on feature properties
       function getFillColor(props) {
-        const impacted = props.Impacted?.toLowerCase() === "yes";
+        const impacted = props.Impact?.toLowerCase() === "yes";
         const benefited = props.Benefited?.toLowerCase() === "yes";
 
         if (impacted && benefited) return "#4CE600";
